@@ -1,15 +1,59 @@
 import pandas as pd
+import pickle
 import numpy as np
 from datetime import datetime
 import os
 import uuid
 
 class CleanData:
-    def __init__(self):
+    def __init__(self, client, year):
+        self.client = client
+        self.year = year
         self.path_id = None
         self.df_id = None
         self.df = None
         self.df_list = {}
+
+        # Ensure directory structure exists
+        self.save_path = f"savepoints/{self.client}/{self.year}/savepoint.pkl"
+        os.makedirs(os.path.dirname(self.save_path), exist_ok=True)
+
+        # Load previous state if available
+        self.load_state()
+
+    def save_state(self):
+        """Save progress to a pickle file."""
+        metadata = {
+            "client": self.client,
+            "year": self.year,
+            "last_saved": datetime.now(),
+            "path_id": self.path_id,
+            "df_id": self.df_id,
+            "df_list": self.df_list
+        }
+        with open(self.save_path, "wb") as f:
+            pickle.dump(metadata, f)
+        print(f"✅ Progress saved for {self.client} - {self.year}")
+
+    def load_state(self):
+        """Load saved progress from a pickle file if it exists."""
+        if os.path.exists(self.save_path):
+            with open(self.save_path, "rb") as f:
+                metadata = pickle.load(f)
+            
+            self.client = metadata["client"]
+            self.year = metadata["year"]
+            self.path_id = metadata["path_id"]
+            self.df_id = metadata["df_id"]
+            self.df_list = metadata["df_list"]
+
+            # Restore the active dataframe if possible
+            if self.path_id and self.df_id is not None:
+                self.df = self.df_list[self.path_id]["history"][self.df_id]["data"]
+
+            print(f"🔄 Loaded saved data for {self.client} - {self.year}")
+        else:
+            print(f"🆕 No savepoint found. Starting fresh for {self.client} - {self.year}")
 
     def set_active_df(self, path_id, df_index):
         if self.df is not None:
@@ -24,6 +68,9 @@ class CleanData:
             new_df_id = len(history)
 
             history[new_df_id] = df_current
+
+            # Save state after every change
+            self.save_state()
 
         self.path_id = path_id
         self.df_index = df_index
@@ -62,6 +109,26 @@ class CleanData:
         }
 
         self.set_active_df(path_id, df_index=0)
+
+        # Save state after loading
+        self.save_state()
+
+    def get_active_df_info(self):
+        """Returns metadata about the currently active dataframe."""
+        if not self.path_id or self.df_id is None:
+            return "No active dataframe."
+
+        metadata = self.df_list[self.path_id]["metadata"]
+        return {
+            "client": self.client,
+            "year": self.year,
+            "last_saved": datetime.now(),
+            "source": metadata["source"],
+            "active_dataset": self.path_id,
+            "active_version": self.df_id,
+            "rows": len(self.df),
+            "columns": list(self.df.columns)
+        }
 
     def add_col(self, name, formula):
         """Adds a new column based on a user-provided formula."""
