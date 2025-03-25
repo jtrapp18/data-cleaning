@@ -1,9 +1,10 @@
 from .cleaning import CleanData
 from PyQt6.QtWidgets import (
-    QMainWindow, QFileDialog, QVBoxLayout, QPushButton, QLayout,
+    QMainWindow, QFileDialog, QVBoxLayout, QPushButton, QLayout, QComboBox,
     QWidget, QTableWidget, QTableWidgetItem, QHBoxLayout, QTabWidget, QLineEdit, QLabel
 )
 import pandas as pd
+import os
 
 def display_after_operation(func):
     """Decorator to refresh DataFrame display after an operation."""
@@ -20,7 +21,8 @@ class DataCleanerApp(QMainWindow):
         self.setWindowTitle("Data Cleaning App")
         self.setGeometry(100, 100, 800, 600)
         
-        self.cleaner = CleanData()
+        self.cleaner = None
+        self.savepoints_dir = "savepoints"
         self.sections = {}
         self.buttons = {}
 
@@ -42,25 +44,122 @@ class DataCleanerApp(QMainWindow):
         return button_container
 
     def initUI(self):
-        """Initialize the main UI layout and create tab structure."""
-        mainLayout = QVBoxLayout()
-        self.sections['main_navigation'] = QTabWidget()
-        mainLayout.addWidget(self.sections['main_navigation'])
+        """Initialize the UI layout and components."""
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        layout = QVBoxLayout(central_widget)
 
-        # Populate tabs with buttons and content
-        self.populate_csv_tab()
-        self.populate_data_tab()
+        # Dropdown for selecting an existing client
+        self.client_label = QLabel("Select Client:")
+        layout.addWidget(self.client_label)
 
-        # Table Widget for displaying the DataFrame
-        self.tableWidget = QTableWidget()
-        self.tableWidget.setRowCount(0)
-        self.tableWidget.setColumnCount(0)
-        mainLayout.addWidget(self.tableWidget)
+        self.client_dropdown = QComboBox()
+        self.load_clients()
+        self.client_dropdown.currentIndexChanged.connect(self.update_years)
+        layout.addWidget(self.client_dropdown)
 
-        # Set the main layout as central widget
-        container = QWidget()
-        container.setLayout(mainLayout)
-        self.setCentralWidget(container)
+        # Input box for new client (hidden by default)
+        self.new_client_input = QLineEdit()
+        self.new_client_input.setPlaceholderText("Enter new client name...")
+        self.new_client_input.setVisible(False)
+        self.new_client_input.returnPressed.connect(self.add_new_client)
+        layout.addWidget(self.new_client_input)
+
+        # # Button for adding a new client
+        # new_button = self.create_button('Add New Client', self.add_new_client)
+        # layout.addWidget(new_button)
+
+        # Dropdown for selecting a year
+        self.year_label = QLabel("Select Year:")
+        layout.addWidget(self.year_label)
+
+        self.year_dropdown = QComboBox()
+        self.year_dropdown.currentIndexChanged.connect(self.load_selected_data)
+        layout.addWidget(self.year_dropdown)
+
+        # # Button for adding a new year
+        # new_button = self.create_button('Add New Year', self.add_new_year)
+        # layout.addWidget(new_button)
+
+        # Button to Load Data
+        self.load_button = QPushButton("Load Data")
+        self.load_button.clicked.connect(self.load_selected_data)
+        layout.addWidget(self.load_button)
+
+        # Placeholder for additional UI elements
+        self.status_label = QLabel("")
+        layout.addWidget(self.status_label)
+
+    def load_clients(self):
+        """Loads client names from the savepoints folder."""
+        self.client_dropdown.clear()
+        self.client_dropdown.addItem("Select Client")
+        if os.path.exists(self.savepoints_dir):
+            clients = [d for d in os.listdir(self.savepoints_dir) if os.path.isdir(os.path.join(self.savepoints_dir, d))]
+            self.client_dropdown.addItems(clients)
+        self.client_dropdown.addItem("Add New...")
+
+    def update_years(self):
+        """Updates year dropdown when a client is selected."""
+        self.year_dropdown.clear()
+        selected_client = self.client_dropdown.currentText()
+
+        if selected_client == "Add New...":
+            self.new_client_input.setVisible(True)
+            self.new_client_input.setFocus()
+            self.year_dropdown.setEnabled(False)
+            return
+        else:
+            self.new_client_input.setVisible(False)
+
+        if selected_client == "Select Client":
+            self.year_dropdown.setEnabled(False)
+            return
+        
+        self.year_dropdown.setEnabled(True)
+        self.year_dropdown.addItem("Select Year")
+        
+        client_path = os.path.join(self.savepoints_dir, selected_client)
+        if os.path.exists(client_path):
+            years = [d for d in os.listdir(client_path) if os.path.isdir(os.path.join(client_path, d))]
+            self.year_dropdown.addItems(years)
+        
+        self.year_dropdown.addItem("Add New...")
+
+    def add_new_client(self):
+        """Adds a new client based on user input."""
+        new_client = self.new_client_input.text().strip()
+        if new_client:
+            os.makedirs(os.path.join(self.savepoints_dir, new_client), exist_ok=True)
+            self.load_clients()  # Refresh dropdown
+            self.client_dropdown.setCurrentText(new_client)
+            self.new_client_input.clear()
+            self.new_client_input.setVisible(False)
+
+    def add_new_year(self):
+        """Adds a new year based on user input."""
+        selected_client = self.client_dropdown.currentText()
+        if selected_client in ["Select Client", "Add New..."]:
+            self.status_label.setText("⚠️ Please select a valid client first.")
+            return
+        
+        new_year, ok = QLineEdit().text(), True  # Simulated input dialog
+        if ok and new_year:
+            os.makedirs(os.path.join(self.savepoints_dir, selected_client, new_year), exist_ok=True)
+            self.update_years()  # Refresh dropdown
+            self.year_dropdown.setCurrentText(new_year)
+
+    def load_selected_data(self):
+        """Loads saved data when both client and year are selected."""
+        selected_client = self.client_dropdown.currentText()
+        selected_year = self.year_dropdown.currentText()
+
+        if selected_client in ["Select Client", "Add New..."] or selected_year in ["Select Year", "Add New..."]:
+            self.status_label.setText("⚠️ Please select a valid client and year.")
+            return
+        
+        self.cleaner = CleanData(client=selected_client, year=selected_year)
+        self.status_label.setText(f"✅ Loaded data for {selected_client} - {selected_year}")
 
     def add_tab(self, label, parent, children):
         """Create and add a new tab to the tab widget."""
