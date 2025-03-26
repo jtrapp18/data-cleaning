@@ -45,51 +45,82 @@ class DataCleanerApp(QMainWindow):
 
     def initUI(self):
         """Initialize the UI layout and components."""
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
+
+        mainLayout = QVBoxLayout()
+        navigation = QTabWidget()
+        mainLayout.addWidget(self.sections['main_navigation'])
+
+        selection_container = self.create_client_year_selections()
+        mainLayout.addWidget(selection_container)
+
+        # Populate tabs with buttons and content
+        csvTab = self.populate_csv_tab()
+        navigation.addTab(csvTab, 'Populate CSV')
+
+        dataTab = self.populate_data_tab()
+        navigation.addTab(dataTab, 'Data Manipulation')
+
+        tableWidget = self.create_table_widget
+        mainLayout.addWidget(tableWidget)
+
+        # Set the main layout as central widget
+        container = QWidget()
+        container.setLayout(mainLayout)
+        self.setCentralWidget(container)
+
+    def create_table_widget(self):
+         # Table Widget for displaying the DataFrame
+         tableWidget = QTableWidget()
+         tableWidget.setRowCount(0)
+         tableWidget.setColumnCount(0)
+         
+         return tableWidget
+
+    def create_client_year_selections(self):
+        widgets = []
 
         # Dropdown for selecting an existing client
-        self.client_label = QLabel("Select Client:")
-        layout.addWidget(self.client_label)
+        client_label = QLabel("Select Client:")
+        widgets.append(client_label)
 
-        self.client_dropdown = QComboBox()
+        client_dropdown = QComboBox()
         self.load_clients()
-        self.client_dropdown.currentIndexChanged.connect(self.update_years)
-        layout.addWidget(self.client_dropdown)
+        client_dropdown.currentIndexChanged.connect(self.update_years)
+        widgets.append(client_dropdown)
 
         # Input box for new client (hidden by default)
-        self.new_client_input = QLineEdit()
-        self.new_client_input.setPlaceholderText("Enter new client name...")
-        self.new_client_input.setVisible(False)
-        self.new_client_input.returnPressed.connect(self.add_new_client)
-        layout.addWidget(self.new_client_input)
-
-        # # Button for adding a new client
-        # new_button = self.create_button('Add New Client', self.add_new_client)
-        # layout.addWidget(new_button)
+        new_client_input = QLineEdit()
+        new_client_input.setPlaceholderText("Enter new client name...")
+        new_client_input.setVisible(False)
+        new_client_input.returnPressed.connect(self.add_new_client)
+        widgets.append(new_client_input)
 
         # Dropdown for selecting a year
-        self.year_label = QLabel("Select Year:")
-        layout.addWidget(self.year_label)
+        year_label = QLabel("Select Year:")
+        widgets.append(year_label)
 
-        self.year_dropdown = QComboBox()
-        self.year_dropdown.currentIndexChanged.connect(self.load_selected_data)
-        layout.addWidget(self.year_dropdown)
+        year_dropdown = QComboBox()
+        year_dropdown.currentIndexChanged.connect(self.load_selected_data)
+        widgets.append(year_dropdown)
 
-        # # Button for adding a new year
-        # new_button = self.create_button('Add New Year', self.add_new_year)
-        # layout.addWidget(new_button)
+        # Input box for new client (hidden by default)
+        new_year_input = QLineEdit()
+        new_year_input.setPlaceholderText("Enter new year...")
+        new_year_input.setVisible(False)
+        new_year_input.returnPressed.connect(self.add_new_year)
+        widgets.append(new_year_input)
 
         # Button to Load Data
-        self.load_button = QPushButton("Load Data")
-        self.load_button.clicked.connect(self.load_selected_data)
-        layout.addWidget(self.load_button)
+        load_button = QPushButton("Load Data")
+        load_button.clicked.connect(self.load_selected_data)
+        widgets.append(load_button)
 
-        # Placeholder for additional UI elements
-        self.status_label = QLabel("")
-        layout.addWidget(self.status_label)
+        selection_container = QHBoxLayout()
+        for widget in widgets:
+            selection_container.addWidget(widget)
 
+        return selection_container
+    
     def load_clients(self):
         """Loads client names from the savepoints folder."""
         self.client_dropdown.clear()
@@ -161,14 +192,13 @@ class DataCleanerApp(QMainWindow):
         self.cleaner = CleanData(client=selected_client, year=selected_year)
         self.status_label.setText(f"✅ Loaded data for {selected_client} - {selected_year}")
 
-    def add_tab(self, label, parent, children):
+    def create_tab(self, label, children):
         """Create and add a new tab to the tab widget."""
         new_tab = QWidget()
         layout = QVBoxLayout()
         new_tab.setLayout(layout)
 
-        parent.addTab(new_tab, label)
-        self.sections[label] = layout  # Store layout for later use
+        self.sections[label] = layout
 
         for child in children:
             if isinstance(child, QLayout):
@@ -178,21 +208,21 @@ class DataCleanerApp(QMainWindow):
             else:
                 print(f"Warning: Unexpected type {type(child)} in add_tab()")
 
-        return layout
+        return new_tab
             
     def populate_csv_tab(self):
         """Populate the File Operations tab with buttons."""
-        parent = self.sections['main_navigation']
         buttons = [
             self.create_button('Load CSV', self.select_and_load_csv),
             self.create_button('Export Cleaned Data', self.export_csv),
         ]
         button_container = self.create_button_container(buttons)
-        self.add_tab('File Operations', parent, children=[button_container])
+        new_tab = self.add_tab('File Operations', children=[button_container])
+
+        return new_tab
 
     def populate_data_tab(self):
         """Populate the Data Manipulation tab with buttons."""
-        parent = self.sections['main_navigation']
         buttons = [
             self.create_button('Remove Duplicates', self.remove_duplicates),
             self.create_button('Merge Another CSV', self.merge_csv),
@@ -202,7 +232,9 @@ class DataCleanerApp(QMainWindow):
             self.create_button_container(buttons),
             self.add_add_column_tab()
         ]
-        self.add_tab('Data Manipulation', parent, children)
+        new_tab = self.add_tab('Data Manipulation', children)
+
+        return new_tab
 
     def add_add_column_tab(self):
         """Create and hide the Add Column section initially."""
