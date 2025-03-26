@@ -6,12 +6,15 @@ import os
 import uuid
 
 class CleanData:
+    
+
     def __init__(self, client, year):
         self.client = client
         self.year = year
         self.path_id = None
         self.df_id = None
         self.df = None
+        self.transformations = []
         self.df_list = {}
 
         # Ensure directory structure exists
@@ -41,8 +44,6 @@ class CleanData:
             with open(self.save_path, "rb") as f:
                 metadata = pickle.load(f)
             
-            self.client = metadata["client"]
-            self.year = metadata["year"]
             self.path_id = metadata["path_id"]
             self.df_id = metadata["df_id"]
             self.df_list = metadata["df_list"]
@@ -61,13 +62,12 @@ class CleanData:
             df_current = {
                 'type': 'modified',
                 'timestamp': datetime.now(),
-                'data': self.df.copy()  # Ensure no reference issues
+                'data': self.df.copy(),
+                'transformations': self.transformations.copy()
             }
 
             history = self.df_list[self.path_id]['history']
-            new_df_id = len(history)
-
-            history[new_df_id] = df_current
+            history.append(df_current)
 
             # Save state after every change
             self.save_state()
@@ -98,7 +98,8 @@ class CleanData:
         df_current = {
             'type': 'raw',
             'timestamp': datetime.now(),
-            'data': df_new
+            'data': df_new,
+            'transformations': []
         }
 
         df_history.append(df_current) 
@@ -140,6 +141,14 @@ class CleanData:
             # self.df[name] = pd.eval(calc, local_dict=self.df.to_dict("series"))
             self.df[name] = pd.eval(formula, local_dict=self.df.to_dict("series"))
 
+            trans_dict = {
+                'name': 'Added Column',
+                'column_name': name,
+                'formula': formula
+            }
+
+            self.transformations.append(trans_dict)
+
             # st.success(f"✅ Column '{name}' added successfully!")
         except Exception as e:
             pass
@@ -152,6 +161,14 @@ class CleanData:
             query_string = " & ".join(query_list)
             self.df = self.df.query(query_string)
             # st.success("✅ Data filtered successfully!")
+
+            trans_dict = {
+                'name': 'Filtered Rows',
+                'filters': filter_dict
+            }
+
+            self.transformations.append(trans_dict)
+
         except Exception as e:
             pass
             # st.error(f"❌ Error filtering data: {e}")
@@ -159,6 +176,12 @@ class CleanData:
     def remove_duplicates(self):
         if self.df is not None:
             self.df.drop_duplicates(inplace=True)
+
+            trans_dict = {
+                'name': 'Removed Duplicates',
+            }
+
+            self.transformations.append(trans_dict)
 
     def merge_csv(self, df_index, merge_columns):
         merge_df = self.df_list[df_index]
