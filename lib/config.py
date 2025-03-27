@@ -1,0 +1,5 @@
+CONFIG = {
+    'paths': {
+        'data': 'data'
+    }
+}

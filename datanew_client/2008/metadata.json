@@ -1,0 +1,51 @@
+{
+    "client": "new_client",
+    "year": "2008",
+    "last_saved": "2025-03-27 14:34:47.896270",
+    "path_id": "fb5d59aa-0149-4ae4-bba7-b2ca48715538",
+    "df_id": 0,
+    "df_list": {
+        "fb5d59aa-0149-4ae4-bba7-b2ca48715538": {
+            "metadata": {
+                "source": "/home/jtrapp/Development/code/personal/data-cleaning/example.csv",
+                "loaded_at": "2025-03-27 14:34:27.698178"
+            },
+            "history": [
+                {
+                    "comment": "raw",
+                    "timestamp": "2025-03-27 14:34:27.745785",
+                    "data_path": "fb5d59aa-0149-4ae4-bba7-b2ca48715538_0.parquet",
+                    "transformations": [
+                        {
+                            "name": "Removed Duplicates"
+                        }
+                    ]
+                },
+                {
+                    "comment": "modified",
+                    "timestamp": "2025-03-27 14:34:47.896173",
+                    "data_path": "fb5d59aa-0149-4ae4-bba7-b2ca48715538_1.parquet",
+                    "transformations": [
+                        {
+                            "name": "Removed Duplicates"
+                        }
+                    ]
+                }
+            ]
+        },
+        "2a691267-458d-441f-b675-4f9a89d55b7c": {
+            "metadata": {
+                "source": "/home/jtrapp/Development/code/personal/data-cleaning/example.csv",
+                "loaded_at": "2025-03-27 14:34:47.883495"
+            },
+            "history": [
+                {
+                    "comment": "raw",
+                    "timestamp": "2025-03-27 14:34:47.888253",
+                    "data_path": "2a691267-458d-441f-b675-4f9a89d55b7c_0.parquet",
+                    "transformations": []
+                }
+            ]
+        }
+    }
+}

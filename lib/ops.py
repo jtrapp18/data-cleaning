@@ -1,10 +1,11 @@
-from .cleaning import CleanData
+from .clean_data import CleanData
 from PyQt6.QtWidgets import (
     QMainWindow, QFileDialog, QVBoxLayout, QPushButton, QLayout, QComboBox,
     QWidget, QTableWidget, QTableWidgetItem, QHBoxLayout, QTabWidget, QLineEdit, QLabel
 )
 import pandas as pd
 import os
+from .config import CONFIG
 
 def display_after_operation(func):
     """Decorator to refresh DataFrame display after an operation."""
@@ -20,11 +21,19 @@ class DataCleanerApp(QMainWindow):
         super().__init__()
         self.setWindowTitle("Data Cleaning App")
         self.setGeometry(100, 100, 800, 600)
+        self.status_label = QLabel("")
         
         self.cleaner = None
-        self.savepoints_dir = "savepoints"
+        self.savepoints_dir = CONFIG['paths']['data']
         self.sections = {}
         self.buttons = {}
+
+        self.client_dropdown = None
+        self.new_client_input = None
+        self.year_dropdown = None
+        self.new_year_input = None
+
+        self.tableWidget = None
 
         self.initUI()
 
@@ -47,21 +56,22 @@ class DataCleanerApp(QMainWindow):
         """Initialize the UI layout and components."""
 
         mainLayout = QVBoxLayout()
-        navigation = QTabWidget()
-        mainLayout.addWidget(self.sections['main_navigation'])
 
         selection_container = self.create_client_year_selections()
-        mainLayout.addWidget(selection_container)
+        mainLayout.addLayout(selection_container)
+
+        navigation = QTabWidget()
+        mainLayout.addWidget(navigation)
 
         # Populate tabs with buttons and content
-        csvTab = self.populate_csv_tab()
+        csvTab = self.create_csv_tab()
         navigation.addTab(csvTab, 'Populate CSV')
 
-        dataTab = self.populate_data_tab()
+        dataTab = self.create_data_tab()
         navigation.addTab(dataTab, 'Data Manipulation')
 
-        tableWidget = self.create_table_widget
-        mainLayout.addWidget(tableWidget)
+        self.tableWidget = self.create_table_widget()
+        mainLayout.addWidget(self.tableWidget)
 
         # Set the main layout as central widget
         container = QWidget()
@@ -83,32 +93,32 @@ class DataCleanerApp(QMainWindow):
         client_label = QLabel("Select Client:")
         widgets.append(client_label)
 
-        client_dropdown = QComboBox()
+        self.client_dropdown = QComboBox()
         self.load_clients()
-        client_dropdown.currentIndexChanged.connect(self.update_years)
-        widgets.append(client_dropdown)
+        self.client_dropdown.currentIndexChanged.connect(self.update_years)
+        widgets.append(self.client_dropdown)
 
         # Input box for new client (hidden by default)
-        new_client_input = QLineEdit()
-        new_client_input.setPlaceholderText("Enter new client name...")
-        new_client_input.setVisible(False)
-        new_client_input.returnPressed.connect(self.add_new_client)
-        widgets.append(new_client_input)
+        self.new_client_input = QLineEdit()
+        self.new_client_input.setPlaceholderText("Enter new client name...")
+        self.new_client_input.setVisible(False)
+        self.new_client_input.returnPressed.connect(self.add_new_client)
+        widgets.append(self.new_client_input)
 
         # Dropdown for selecting a year
         year_label = QLabel("Select Year:")
         widgets.append(year_label)
 
-        year_dropdown = QComboBox()
-        year_dropdown.currentIndexChanged.connect(self.load_selected_data)
-        widgets.append(year_dropdown)
+        self.year_dropdown = QComboBox()
+        self.year_dropdown.currentIndexChanged.connect(self.load_selected_data)
+        widgets.append(self.year_dropdown)
 
         # Input box for new client (hidden by default)
-        new_year_input = QLineEdit()
-        new_year_input.setPlaceholderText("Enter new year...")
-        new_year_input.setVisible(False)
-        new_year_input.returnPressed.connect(self.add_new_year)
-        widgets.append(new_year_input)
+        self.new_year_input = QLineEdit()
+        self.new_year_input.setPlaceholderText("Enter new year...")
+        self.new_year_input.setVisible(False)
+        self.new_year_input.returnPressed.connect(self.add_new_year)
+        widgets.append(self.new_year_input)
 
         # Button to Load Data
         load_button = QPushButton("Load Data")
@@ -146,7 +156,7 @@ class DataCleanerApp(QMainWindow):
         if selected_client == "Select Client":
             self.year_dropdown.setEnabled(False)
             return
-        
+
         self.year_dropdown.setEnabled(True)
         self.year_dropdown.addItem("Select Year")
         
@@ -154,8 +164,9 @@ class DataCleanerApp(QMainWindow):
         if os.path.exists(client_path):
             years = [d for d in os.listdir(client_path) if os.path.isdir(os.path.join(client_path, d))]
             self.year_dropdown.addItems(years)
-        
+
         self.year_dropdown.addItem("Add New...")
+
 
     def add_new_client(self):
         """Adds a new client based on user input."""
@@ -173,15 +184,32 @@ class DataCleanerApp(QMainWindow):
         if selected_client in ["Select Client", "Add New..."]:
             self.status_label.setText("⚠️ Please select a valid client first.")
             return
-        
-        new_year, ok = QLineEdit().text(), True  # Simulated input dialog
-        if ok and new_year:
-            os.makedirs(os.path.join(self.savepoints_dir, selected_client, new_year), exist_ok=True)
-            self.update_years()  # Refresh dropdown
-            self.year_dropdown.setCurrentText(new_year)
+
+        new_year = self.new_year_input.text().strip()
+        if new_year:
+            client_path = os.path.join(self.savepoints_dir, selected_client)
+            new_year_path = os.path.join(client_path, new_year)
+            
+            # Create new year directory if it doesn't exist
+            if not os.path.exists(new_year_path):
+                os.makedirs(new_year_path)
+                self.update_years()  # Refresh year dropdown
+                self.year_dropdown.setCurrentText(new_year)
+
+            # Clear and hide the new year input
+            self.new_year_input.clear()
+            self.new_year_input.setVisible(False)
 
     def load_selected_data(self):
         """Loads saved data when both client and year are selected."""
+
+        if self.year_dropdown.currentText() == "Add New...":
+            self.new_year_input.setVisible(True)
+            self.new_year_input.setFocus()
+            return
+        else:
+            self.new_year_input.setVisible(False)
+
         selected_client = self.client_dropdown.currentText()
         selected_year = self.year_dropdown.currentText()
 
@@ -210,18 +238,18 @@ class DataCleanerApp(QMainWindow):
 
         return new_tab
             
-    def populate_csv_tab(self):
+    def create_csv_tab(self):
         """Populate the File Operations tab with buttons."""
         buttons = [
             self.create_button('Load CSV', self.select_and_load_csv),
             self.create_button('Export Cleaned Data', self.export_csv),
         ]
         button_container = self.create_button_container(buttons)
-        new_tab = self.add_tab('File Operations', children=[button_container])
+        new_tab = self.create_tab('File Operations', children=[button_container])
 
         return new_tab
 
-    def populate_data_tab(self):
+    def create_data_tab(self):
         """Populate the Data Manipulation tab with buttons."""
         buttons = [
             self.create_button('Remove Duplicates', self.remove_duplicates),
@@ -230,13 +258,13 @@ class DataCleanerApp(QMainWindow):
         ]
         children = [
             self.create_button_container(buttons),
-            self.add_add_column_tab()
+            self.create_add_column_section()
         ]
-        new_tab = self.add_tab('Data Manipulation', children)
+        new_tab = self.create_tab('Data Manipulation', children)
 
         return new_tab
 
-    def add_add_column_tab(self):
+    def create_add_column_section(self):
         """Create and hide the Add Column section initially."""
         # dataLayout = self.sections['Data Manipulation']
 
