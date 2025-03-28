@@ -1,21 +1,12 @@
 from .clean_data import CleanData
 from PyQt6.QtWidgets import (
     QMainWindow, QFileDialog, QVBoxLayout, QPushButton, QLayout, QComboBox,
-    QWidget, QTableWidget, QTableWidgetItem, QHBoxLayout, QTabWidget, QLineEdit, QLabel
+    QWidget, Qtable_widget, QDialog, Qtable_widgetItem, QHBoxLayout, QTabWidget, QLineEdit, QLabel
 )
 import pandas as pd
 import os
 from .config import CONFIG
-
-def display_after_operation(func):
-    """Decorator to refresh DataFrame display after an operation."""
-    def wrapper(self, *args, **kwargs):
-        result = func(self, *args, **kwargs)
-
-        self.display_dataframe()
-        return result
-    return wrapper
-
+        
 class DataCleanerApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -33,7 +24,8 @@ class DataCleanerApp(QMainWindow):
         self.year_dropdown = None
         self.new_year_input = None
 
-        self.tableWidget = None
+        self.table_widget = None
+        self.dbWidget = None
 
         self.initUI()
 
@@ -65,13 +57,10 @@ class DataCleanerApp(QMainWindow):
 
         # Populate tabs with buttons and content
         csvTab = self.create_csv_tab()
-        navigation.addTab(csvTab, 'Populate CSV')
+        navigation.addTab(csvTab, 'Database')
 
         dataTab = self.create_data_tab()
         navigation.addTab(dataTab, 'Data Manipulation')
-
-        self.tableWidget = self.create_table_widget()
-        mainLayout.addWidget(self.tableWidget)
 
         # Set the main layout as central widget
         container = QWidget()
@@ -80,11 +69,11 @@ class DataCleanerApp(QMainWindow):
 
     def create_table_widget(self):
          # Table Widget for displaying the DataFrame
-         tableWidget = QTableWidget()
-         tableWidget.setRowCount(0)
-         tableWidget.setColumnCount(0)
+         table_widget = Qtable_widget()
+         table_widget.setRowCount(0)
+         table_widget.setColumnCount(0)
          
-         return tableWidget
+         return table_widget
 
     def create_client_year_selections(self):
         widgets = []
@@ -244,8 +233,16 @@ class DataCleanerApp(QMainWindow):
             self.create_button('Load CSV', self.select_and_load_csv),
             self.create_button('Export Cleaned Data', self.export_csv),
         ]
+
         button_container = self.create_button_container(buttons)
-        new_tab = self.create_tab('File Operations', children=[button_container])
+        self.db_widget = self.create_table_widget()
+
+        children = [
+            button_container,
+            self.db_widget
+        ]
+
+        new_tab = self.create_tab('File Operations', children=children)
 
         return new_tab
 
@@ -256,10 +253,15 @@ class DataCleanerApp(QMainWindow):
             self.create_button('Merge Another CSV', self.merge_csv),
             self.create_button('Add Column', lambda: self.sections['Add Column'].setVisible(True))
         ]
+
+        self.table_widget = self.create_table_widget()
+
         children = [
             self.create_button_container(buttons),
-            self.create_add_column_section()
+            self.create_add_column_section(),
+            self.table_widget
         ]
+        
         new_tab = self.create_tab('Data Manipulation', children)
 
         return new_tab
@@ -298,16 +300,16 @@ class DataCleanerApp(QMainWindow):
         """Display the loaded DataFrame in the table widget."""
         if self.cleaner.df is not None and not self.cleaner.df.empty:
             df = self.cleaner.df
-            self.tableWidget.setRowCount(df.shape[0])
-            self.tableWidget.setColumnCount(df.shape[1])
-            self.tableWidget.setHorizontalHeaderLabels(df.columns)
+            self.table_widget.setRowCount(df.shape[0])
+            self.table_widget.setColumnCount(df.shape[1])
+            self.table_widget.setHorizontalHeaderLabels(df.columns)
 
             for i in range(df.shape[0]):
                 for j in range(df.shape[1]):
-                    self.tableWidget.setItem(i, j, QTableWidgetItem(str(df.iat[i, j])))
+                    self.table_widget.setItem(i, j, Qtable_widgetItem(str(df.iat[i, j])))
         else:
-            self.tableWidget.setRowCount(0)
-            self.tableWidget.setColumnCount(0)
+            self.table_widget.setRowCount(0)
+            self.table_widget.setColumnCount(0)
     
     def select_and_load_csv(self):
         """Load CSV file into the cleaner."""
