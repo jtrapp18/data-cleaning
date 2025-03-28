@@ -1,5 +1,7 @@
+import json
+
 from PyQt6.QtWidgets import (
-    QApplication, QVBoxLayout, QPushButton, QLabel, QDialog,
+    QApplication, QVBoxLayout, QPushButton, QLabel, QDialog, QFileDialog,
     QRadioButton, QCheckBox, QHBoxLayout, QTextEdit, QWidget, QTabWidget, QFormLayout, QLineEdit
 )
 import pandas as pd
@@ -49,7 +51,6 @@ class DataImport(QDialog):
         navigation.addWidget(cancel_button)
 
         return navigation
-
 
     def step_1_import_options(self):
         """Step 1: Import Options."""
@@ -205,6 +206,52 @@ class DataImport(QDialog):
     def get_dataframe(self):
         """Returns the imported DataFrame."""
         return self.dataframe
+
+    def save_specs(self):
+        """Save user specifications to a JSON file."""
+        if self.dataframe is None:
+            print("No data available to save.")
+            return
+
+        # Collect column selection and renaming data
+        specs = {}
+        for col, (checkbox, rename_input) in self.column_widgets.items():
+            specs[col] = {
+                "selected": checkbox.isChecked(),
+                "new_name": rename_input.text()
+            }
+
+        # Open a file dialog to let the user choose where to save the spec
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save Specs", "", "JSON Files (*.json)")
+
+        if file_name:
+            try:
+                with open(file_name, 'w') as f:
+                    json.dump(specs, f, indent=4)
+                print(f"Specs saved to {file_name}")
+            except Exception as e:
+                print(f"Error saving specs: {e}")
+
+    def load_specs(self):
+        """Load previously saved specifications."""
+        file_name, _ = QFileDialog.getOpenFileName(self, "Load Specs", "", "JSON Files (*.json)")
+
+        if file_name:
+            try:
+                with open(file_name, 'r') as f:
+                    specs = json.load(f)
+
+                # Apply loaded specs (column selection & renaming)
+                for col, spec in specs.items():
+                    if col in self.column_widgets:
+                        checkbox, rename_input = self.column_widgets[col]
+                        checkbox.setChecked(spec['selected'])
+                        rename_input.setText(spec['new_name'])
+
+                print(f"Specs loaded from {file_name}")
+            except Exception as e:
+                print(f"Error loading specs: {e}")
+
 
 # Test the Import Manager
 if __name__ == "__main__":
