@@ -1,11 +1,12 @@
 from .clean_data import CleanData
 from PyQt6.QtWidgets import (
     QMainWindow, QFileDialog, QVBoxLayout, QPushButton, QLayout, QComboBox,
-    QWidget, Qtable_widget, QDialog, Qtable_widgetItem, QHBoxLayout, QTabWidget, QLineEdit, QLabel
+    QWidget, QTableWidget, QDialog, QTableWidgetItem, QHBoxLayout, QTabWidget, QLineEdit, QLabel
 )
 import pandas as pd
 import os
 from .config import CONFIG
+from .data_import import DataImport
         
 class DataCleanerApp(QMainWindow):
     def __init__(self):
@@ -69,7 +70,7 @@ class DataCleanerApp(QMainWindow):
 
     def create_table_widget(self):
          # Table Widget for displaying the DataFrame
-         table_widget = Qtable_widget()
+         table_widget = QTableWidget()
          table_widget.setRowCount(0)
          table_widget.setColumnCount(0)
          
@@ -306,7 +307,7 @@ class DataCleanerApp(QMainWindow):
 
             for i in range(df.shape[0]):
                 for j in range(df.shape[1]):
-                    self.table_widget.setItem(i, j, Qtable_widgetItem(str(df.iat[i, j])))
+                    self.table_widget.setItem(i, j, QTableWidgetItem(str(df.iat[i, j])))
         else:
             self.table_widget.setRowCount(0)
             self.table_widget.setColumnCount(0)
@@ -315,9 +316,13 @@ class DataCleanerApp(QMainWindow):
         """Load CSV file into the cleaner."""
         file_path, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV Files (*.csv)")
         if file_path:
-            print('path', file_path)
-            self.cleaner.load_csv(file_path)
-            self.display_dataframe()
+            importer = DataImport(file_path)
+
+        if importer.exec():  # If dialog is accepted
+            df = importer.get_dataframe()
+            if df is not None:  
+                self.cleaner.load_df(file_path, df)
+                self.display_dataframe()
 
     def remove_duplicates(self):
         """Remove duplicate rows from the DataFrame."""

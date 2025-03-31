@@ -116,7 +116,7 @@ class ManageData:
         self.df = pd.read_parquet(df_filepath)
         self.transformations = df_metadata['transformations']
 
-    def load_csv(self, path: str) -> None:
+    def load_df(self, path: str, df_new: pd.DataFrame) -> None:
         """
         Loads a CSV file and saves its initial state.
 
@@ -130,13 +130,6 @@ class ManageData:
         
         path_id = str(uuid.uuid4())
         df_history = []
-        
-        try:
-            df_new = pd.read_csv(path)
-            if df_new.empty:
-                print(f"⚠️ Warning: The CSV {path} is empty.")
-        except Exception as e:
-            raise ValueError(f"❌ Error reading CSV {path}: {e}")
         
         metadata = {
             'source': path,

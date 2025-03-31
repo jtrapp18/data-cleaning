@@ -1,5 +1,8 @@
+ROOT = './'
+
 CONFIG = {
     'paths': {
-        'data': 'data'
+        'data': fr'{ROOT}data',
+        'specs': fr'{ROOT}specs'
     }
 }
