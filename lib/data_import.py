@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QRadioButton, QCheckBox, QHBoxLayout, QTextEdit, QWidget, QTabWidget, QFormLayout, QLineEdit
 )
 import pandas as pd
-from .config import CONFIG
+from .config import ClientPath
 
 class DataImport(QDialog):
     def __init__(self, path: str, name=None, spec_file=None):
@@ -205,6 +205,7 @@ class DataImport(QDialog):
             2: [self.step_3_column_selection],
             3: [self.apply_column_selection,
                 self.save_specs,
+                self.save_data,
                 self.accept]
         }
 
@@ -233,11 +234,7 @@ class DataImport(QDialog):
 
         specs = self.get_current_specs()
 
-        # Open a file dialog to let the user choose where to save the spec
-        # file_name, _ = QFileDialog.getSaveFileName(self, "Save Specs", "", "JSON Files (*.json)")
-        file_name = fr'{self.name}_specs.json'
-        file_loc = CONFIG['paths']['specs']
-        path = fr'{file_loc}/{file_name}'
+        path = get_path('database', 'specs', create=True, db_name=self.name)
 
         if path:
             try:
@@ -246,6 +243,21 @@ class DataImport(QDialog):
                 print(f"Specs saved to {path}")
             except Exception as e:
                 print(f"Error saving specs: {e}")
+
+    def save_data(self):
+        """Save the current dataframe to a Parquet file."""
+        if self.dataframe is None or self.dataframe.empty:
+            print("No data available to save.")
+            return
+
+        path = get_path('database', 'data', create=True, db_name=self.name)
+
+        if path:
+            try:
+                self.dataframe.to_parquet(path, index=False)
+                print(f"Data saved to {path}")
+            except Exception as e:
+                print(f"Error saving data: {e}")
 
     def get_default_specs(self):
         return {

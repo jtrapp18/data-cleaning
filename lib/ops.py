@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
 )
 import pandas as pd
 import os
-from .config import CONFIG
+from .config import ClientPath
 from .data_import import DataImport
         
 class DataCleanerApp(QMainWindow):
@@ -16,7 +16,6 @@ class DataCleanerApp(QMainWindow):
         self.status_label = QLabel("")
         
         self.cleaner = None
-        self.savepoints_dir = CONFIG['paths']['data']
         self.sections = {}
         self.buttons = {}
 
@@ -125,6 +124,9 @@ class DataCleanerApp(QMainWindow):
         """Loads client names from the savepoints folder."""
         self.client_dropdown.clear()
         self.client_dropdown.addItem("Select Client")
+
+        path = get_path('database', 'data', create=False, db_name=self.name)
+
         if os.path.exists(self.savepoints_dir):
             clients = [d for d in os.listdir(self.savepoints_dir) if os.path.isdir(os.path.join(self.savepoints_dir, d))]
             self.client_dropdown.addItems(clients)
