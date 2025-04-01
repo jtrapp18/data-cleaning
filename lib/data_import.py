@@ -5,11 +5,12 @@ from PyQt6.QtWidgets import (
     QRadioButton, QCheckBox, QHBoxLayout, QTextEdit, QWidget, QTabWidget, QFormLayout, QLineEdit
 )
 import pandas as pd
-from .config import ClientPath
 
 class DataImport(QDialog):
-    def __init__(self, path: str, name=None, spec_file=None):
+    def __init__(self, paths, path: str, name=None, spec_file=None):
         super().__init__()
+
+        self.paths = paths
 
         self.path = path
         if self.name:
@@ -234,7 +235,7 @@ class DataImport(QDialog):
 
         specs = self.get_current_specs()
 
-        path = get_path('database', 'specs', create=True, db_name=self.name)
+        path = self.paths.get('database', 'specs', create=True, db_name=self.name)
 
         if path:
             try:
@@ -249,8 +250,8 @@ class DataImport(QDialog):
         if self.dataframe is None or self.dataframe.empty:
             print("No data available to save.")
             return
-
-        path = get_path('database', 'data', create=True, db_name=self.name)
+        
+        path = self.paths.get('database', 'data', create=True, db_name=self.name)
 
         if path:
             try:

@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
 )
 import pandas as pd
 import os
-from .config import ClientPath
+from .config import ROOT, ClientPath
 from .data_import import DataImport
         
 class DataCleanerApp(QMainWindow):
@@ -14,8 +14,10 @@ class DataCleanerApp(QMainWindow):
         self.setWindowTitle("Data Cleaning App")
         self.setGeometry(100, 100, 800, 600)
         self.status_label = QLabel("")
-        
+
+        self.paths = None
         self.cleaner = None
+
         self.sections = {}
         self.buttons = {}
 
@@ -125,10 +127,8 @@ class DataCleanerApp(QMainWindow):
         self.client_dropdown.clear()
         self.client_dropdown.addItem("Select Client")
 
-        path = get_path('database', 'data', create=False, db_name=self.name)
-
-        if os.path.exists(self.savepoints_dir):
-            clients = [d for d in os.listdir(self.savepoints_dir) if os.path.isdir(os.path.join(self.savepoints_dir, d))]
+        if os.path.exists(ROOT):
+            clients = [d for d in os.listdir(ROOT) if os.path.isdir(os.path.join(ROOT, d))]
             self.client_dropdown.addItems(clients)
         self.client_dropdown.addItem("Add New...")
 
@@ -148,23 +148,26 @@ class DataCleanerApp(QMainWindow):
         if selected_client == "Select Client":
             self.year_dropdown.setEnabled(False)
             return
+        
+        self.paths = ClientPath(selected_client)
 
         self.year_dropdown.setEnabled(True)
         self.year_dropdown.addItem("Select Year")
-        
-        client_path = os.path.join(self.savepoints_dir, selected_client)
-        if os.path.exists(client_path):
-            years = [d for d in os.listdir(client_path) if os.path.isdir(os.path.join(client_path, d))]
+
+        self.paths.years_root
+
+        if os.path.exists(self.paths.years_root):
+            years = [y for y in os.listdir(self.paths.years_root)
+                     if os.path.isdir(os.path.join(self.paths.years_root, y))]
             self.year_dropdown.addItems(years)
 
         self.year_dropdown.addItem("Add New...")
-
 
     def add_new_client(self):
         """Adds a new client based on user input."""
         new_client = self.new_client_input.text().strip()
         if new_client:
-            os.makedirs(os.path.join(self.savepoints_dir, new_client), exist_ok=True)
+            os.makedirs(os.path.join(ROOT, new_client), exist_ok=True)
             self.load_clients()  # Refresh dropdown
             self.client_dropdown.setCurrentText(new_client)
             self.new_client_input.clear()
@@ -179,8 +182,7 @@ class DataCleanerApp(QMainWindow):
 
         new_year = self.new_year_input.text().strip()
         if new_year:
-            client_path = os.path.join(self.savepoints_dir, selected_client)
-            new_year_path = os.path.join(client_path, new_year)
+            new_year_path = os.path.join(self.paths.client_root, new_year)
             
             # Create new year directory if it doesn't exist
             if not os.path.exists(new_year_path):
@@ -318,13 +320,12 @@ class DataCleanerApp(QMainWindow):
         """Load CSV file into the cleaner."""
         file_path, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV Files (*.csv)")
         if file_path:
-            importer = DataImport(file_path)
+            importer = DataImport(self.paths, file_path)
 
-        if importer.exec():  # If dialog is accepted
+        if importer.exec():
             df = importer.get_dataframe()
-            if df is not None:  
-                self.cleaner.load_df(file_path, df)
-                self.display_dataframe()
+        #     if df is not None:
+                
 
     def remove_duplicates(self):
         """Remove duplicate rows from the DataFrame."""
